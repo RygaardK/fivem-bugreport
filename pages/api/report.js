@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '../../lib/supabaseServer';
+import { randomUUID } from 'crypto';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
@@ -7,6 +8,7 @@ export default async function handler(req, res) {
 
   try {
     const row = {
+      id: randomUUID(), // Generera ett unikt UUID för att undvika null constraint-fel
       title: body.title,
       description: body.description,
       steps: body.steps,
