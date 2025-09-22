@@ -143,7 +143,7 @@ export default function Home() {
           WebkitTextFillColor: 'transparent',
           backgroundClip: 'text'
         }}>
-          🐛 Rapportera bugg
+          🐛 Rapportera bugg till NewLife
         </h1>
         <p style={{ color: '#666', fontSize: '1.1rem', margin: 0 }}>
           Hjälp oss att förbättra systemet genom att rapportera buggar du hittar
