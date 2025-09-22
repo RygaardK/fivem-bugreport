@@ -15,6 +15,47 @@ export default function Home() {
   
   // Message states
   const [message, setMessage] = useState(null); // { type: 'success'|'error', text: string }
+  // Bug list state
+  const [showList, setShowList] = useState(false);
+  const [bugs, setBugs] = useState([]);
+  const [isLoadingBugs, setIsLoadingBugs] = useState(false);
+  const [bugFilter, setBugFilter] = useState('open');
+
+  async function fetchBugs(filter = bugFilter) {
+    setIsLoadingBugs(true);
+    try {
+      const q = filter ? `?status=${encodeURIComponent(filter)}` : '';
+      const res = await fetch('/api/report' + q);
+      if (!res.ok) throw new Error('Kunde inte hämta buggar');
+      const data = await res.json();
+      setBugs(data.reports || []);
+    } catch (err) {
+      setMessage({ type: 'error', text: 'Fel vid hämtning av buggar: ' + err.message });
+    } finally {
+      setIsLoadingBugs(false);
+    }
+  }
+
+  async function updateBugStatus(id, status) {
+    try {
+      const res = await fetch('/api/report', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status })
+      });
+      if (!res.ok) throw new Error('Kunde inte uppdatera status');
+      const data = await res.json();
+      setBugs(prev => prev.map(b => b.id === id ? data.report : b));
+      setMessage({ type: 'success', text: 'Status uppdaterad' });
+    } catch (err) {
+      setMessage({ type: 'error', text: 'Fel vid statusuppdatering: ' + err.message });
+    }
+  }
+
+  useEffect(() => {
+    if (showList) fetchBugs();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showList, bugFilter]);
   
   const dropRef = useRef();
 
@@ -520,6 +561,192 @@ export default function Home() {
           </button>
         </div>
       </form>
+
+      {/* BUG LIST SECTION */}
+      <div style={{ marginTop: '4rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
+          <button
+            type="button"
+            onClick={() => setShowList(s => !s)}
+            style={{
+              padding: '10px 18px',
+              background: showList ? '#374151' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontWeight: 600
+            }}
+          >
+            {showList ? 'Dölj buggar' : 'Visa buggar'}
+          </button>
+          {showList && (
+            <select
+              value={bugFilter}
+              onChange={e => { setBugFilter(e.target.value); fetchBugs(e.target.value); }}
+              style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #d1d5db' }}
+            >
+              <option value="open">Öppna</option>
+              <option value="in_progress">Pågående</option>
+              <option value="resolved">Klara</option>
+              <option value="">Alla</option>
+            </select>
+          )}
+          {showList && (
+            <button
+              type="button"
+              onClick={() => fetchBugs()}
+              style={{
+                padding: '8px 14px',
+                background: '#2563eb',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer'
+              }}
+            >Uppdatera</button>
+          )}
+        </div>
+
+        {showList && (
+          <div style={{
+            border: '1px solid #e5e7eb',
+            borderRadius: '12px',
+            background: 'white',
+            padding: '1rem',
+            maxHeight: '600px',
+            overflowY: 'auto'
+          }}>
+            {isLoadingBugs && <p style={{ margin: 0 }}>Hämtar buggar...</p>}
+            {!isLoadingBugs && bugs.length === 0 && (
+              <p style={{ margin: 0, color: '#6b7280' }}>Inga buggar hittades.</p>
+            )}
+            <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              {bugs.map(b => {
+                const isResolved = b.status === 'resolved';
+                const isInProgress = b.status === 'in_progress';
+                return (
+                  <li
+                    key={b.id}
+                    style={{
+                      border: '1px solid ' + (isResolved ? '#10b981' : isInProgress ? '#f59e0b' : '#e5e7eb'),
+                      background: isResolved ? '#f0fdf4' : isInProgress ? '#fffbeb' : '#f9fafb',
+                      borderRadius: '8px',
+                      padding: '0.75rem 0.9rem',
+                      display: 'flex',
+                      gap: '0.75rem',
+                      alignItems: 'flex-start'
+                    }}
+                  >
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        <strong style={{ color: '#111827' }}>{b.title}</strong>
+                        <span style={{
+                          fontSize: '0.65rem',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.05em',
+                          background: isResolved ? '#10b981' : isInProgress ? '#f59e0b' : '#6366f1',
+                          color: 'white',
+                          padding: '2px 6px',
+                          borderRadius: '4px'
+                        }}>{b.status || 'open'}</span>
+                        {b.priority && (
+                          <span style={{
+                            fontSize: '0.65rem',
+                            background: '#1f2937',
+                            color: 'white',
+                            padding: '2px 6px',
+                            borderRadius: '4px'
+                          }}>{b.priority}</span>
+                        )}
+                        <span style={{ fontSize: '0.65rem', color: '#6b7280' }}>
+                          {new Date(b.created_at).toLocaleString('sv-SE')}
+                        </span>
+                      </div>
+                      {b.description && (
+                        <p style={{ margin: '0.35rem 0 0.25rem', fontSize: '0.8rem', color: '#374151', whiteSpace: 'pre-line' }}>
+                          {b.description.length > 300 ? b.description.slice(0,300) + '…' : b.description}
+                        </p>
+                      )}
+                      {(() => {
+                        // Normalisera attachments: kan vara null, objekt, string eller redan array
+                        let att = b.attachments;
+                        if (att && !Array.isArray(att)) {
+                          // Om JSON lagrats som string
+                          if (typeof att === 'string') {
+                            try { att = JSON.parse(att); } catch { att = []; }
+                          } else if (typeof att === 'object') {
+                            // Om ett enskilt objekt lagrats istället för array
+                            att = [att];
+                          }
+                        }
+                        if (!Array.isArray(att)) att = [];
+                        if (att.length === 0) return null;
+                        return (
+                          <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '4px' }}>
+                            {att.map((a,i) => (
+                              <a key={i} href={a.url} target="_blank" rel="noreferrer" style={{ fontSize: '0.65rem', color: '#2563eb', textDecoration: 'underline' }}>
+                                {a?.filename || 'bilaga'}
+                              </a>
+                            ))}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      {b.status !== 'in_progress' && b.status !== 'resolved' && (
+                        <button
+                          type="button"
+                          onClick={() => updateBugStatus(b.id, 'in_progress')}
+                          style={{
+                            padding: '4px 8px',
+                            background: '#f59e0b',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            fontSize: '0.7rem'
+                          }}
+                        >Pågår</button>
+                      )}
+                      {b.status !== 'resolved' && (
+                        <button
+                          type="button"
+                          onClick={() => updateBugStatus(b.id, 'resolved')}
+                          style={{
+                            padding: '4px 8px',
+                            background: '#10b981',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            fontSize: '0.7rem'
+                          }}
+                        >Klar</button>
+                      )}
+                      {b.status === 'resolved' && (
+                        <button
+                          type="button"
+                          onClick={() => updateBugStatus(b.id, 'open')}
+                          style={{
+                            padding: '4px 8px',
+                            background: '#374151',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            fontSize: '0.7rem'
+                          }}
+                        >Återöppna</button>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
+      </div>
 
       <style jsx>{`
         @keyframes spin {
