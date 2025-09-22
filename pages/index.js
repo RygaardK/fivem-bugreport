@@ -129,10 +129,14 @@ export default function Home() {
 
   return (
     <div style={{ 
+      width: '100vw', 
+      backgroundColor: '#999',
+    }}>    
+    <div style={{ 
       maxWidth: 900, 
       margin: '2rem auto', 
       padding: '20px',
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
     }}>
       <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
         <h1 style={{ 
@@ -458,6 +462,7 @@ export default function Home() {
             style={{
               padding: '12px',
               borderRadius: '8px',
+              color: '#374151',
               border: '2px solid #e5e7eb',
               fontSize: '1rem',
               backgroundColor: 'white',
@@ -527,6 +532,7 @@ export default function Home() {
           100% { transform: translateX(100%); }
         }
       `}</style>
+    </div>
     </div>
   );
 }
